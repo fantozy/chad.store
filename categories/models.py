@@ -9,6 +9,6 @@ class Category(TimeStampedModel, models.Model):
 
 class CategoryImage(TimeStampedModel, models.Model):
     image = models.ImageField(upload_to='categories/')
-    product = models.ForeignKey('categories.Category', related_name='images', on_delete=models.CASCADE)
+    category = models.ForeignKey('categories.Category', related_name='images', on_delete=models.CASCADE)
     
 
