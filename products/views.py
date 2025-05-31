@@ -62,7 +62,7 @@ class ReviewViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated, IsObjectOwnerOrReadOnly]
 
     def get_queryset(self, *args, **kwargs):
-        queryset = self.queryset.filter(product_id=self.kwargs['product_pk'])
+        queryset = self.queryset.filter(product_id=self.kwargs.get('product_pk'))
         return queryset
 
 
@@ -101,7 +101,7 @@ class ProductImageViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, 
     parser_classes = (MultiPartParser, FormParser)
 
     def get_queryset(self):
-        return self.queryset.filter(product__id=self.kwargs['product_pk'])
+        return self.queryset.filter(product__id=self.kwargs.get('product_pk'))
 
     def create(self, request, *args, **kwargs):
         try:

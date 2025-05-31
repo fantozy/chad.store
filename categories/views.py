@@ -27,7 +27,7 @@ class CategoryImageViewSet(ListModelMixin, CreateModelMixin, GenericAPIView):
     serializer_class = CategoryImageSerializer
 
     def get_queryset(self):
-        category_id = self.kwargs['category_id']
+        category_id = self.kwargs.get('category_id')
         
         return self.queryset.filter(category=category_id)
 
