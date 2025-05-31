@@ -26,12 +26,12 @@ schema_view = get_schema_view(
 urlpatterns = [
     path("admin/", admin.site.urls),
     # local urls
-    path("", include('products.urls')),
-    path("", include('categories.urls')),
-    path("", include('users.urls')),
+    path("api/", include('products.urls')),
+    path("api/", include('categories.urls')),
+    path("api/", include('users.urls')),
     # JWT urls
-    path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     # Swagger 
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
