@@ -1,13 +1,14 @@
-from django.shortcuts import render
-
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin
-from categories.models import Category, CategoryImage
+from rest_framework.permissions import IsAuthenticated
+
 from categories.serializers import CategorySerializer, CategoryDetailSerializer, CategoryImageSerializer
+from categories.models import Category, CategoryImage
 
 class CategoryListView(ListModelMixin, GenericAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
