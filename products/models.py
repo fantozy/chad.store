@@ -39,7 +39,6 @@ class Cart(TimeStampedModel, models.Model):
     products = models.ManyToManyField('products.Product', related_name='carts')
     user = models.OneToOneField('users.User', related_name='cart', on_delete=models.SET_NULL, null=True, blank=True)
 
-from config.utils.image_validators import validate_image_size, validate_image_dimensions, validate_image_count
 class ProductImage(TimeStampedModel, models.Model):
     image = models.ImageField(upload_to='products/', validators=[validate_image_size, validate_image_dimensions])
     product = models.ForeignKey('products.Product', related_name='images', on_delete=models.CASCADE)
