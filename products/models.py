@@ -2,7 +2,7 @@ from django.db import models
 from django.core.validators import MaxValueValidator
 from config.model_utils.models import TimeStampedModel
 from products.choices import Currency
-from config.utils.image_validators import validate_image_dimensions, validate_image_size
+from config.utils.image_validators import validate_image_dimensions, validate_image_size, validate_image_count
 
 class Product(TimeStampedModel, models.Model):
     name = models.CharField(max_length=255)
