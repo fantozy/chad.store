@@ -1,88 +1,84 @@
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+
+from django_filters.rest_framework import DjangoFilterBackend
+
 from rest_framework import status
-from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.filters import SearchFilter
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.generics import GenericAPIView
-from rest_framework.mixins import CreateModelMixin, ListModelMixin, UpdateModelMixin, RetrieveModelMixin, DestroyModelMixin
+from rest_framework.response import Response
+from rest_framework.throttling import (
+    UserRateThrottle,
+    ScopedRateThrottle,
+)
+from rest_framework.viewsets import ModelViewSet, GenericViewSet
+from rest_framework.mixins import (
+    ListModelMixin,
+    CreateModelMixin,
+    DestroyModelMixin,
+    RetrieveModelMixin,
+    UpdateModelMixin,
+)
+from rest_framework.parsers import MultiPartParser, FormParser
+
 from products.models import (
     Product,
     Review,
     FavoriteProduct,
-    Cart, ProductTag, ProductImage
+    Cart,
+    CartItem,
+    ProductTag,
+    ProductImage,
 )
 from products.serializers import (
     ProductSerializer,
     ReviewSerializer,
     FavoriteProductSerializer,
     CartSerializer,
-    ProductTagSerializer, ProductImageSerializer
-    )
+    CartItemSerializer,
+    ProductTagSerializer,
+    ProductImageSerializer,
+)
+from products.filters import ProductFilter
+from products.permissions import IsObjectOwnerOrReadOnly
+from products.pagination import ProductPagination
 
 
-class ProductViewSet(RetrieveModelMixin, 
-                    CreateModelMixin,
-                    ListModelMixin,
-                    UpdateModelMixin,
-                    DestroyModelMixin,
-                    GenericAPIView):
-
+class ProductViewSet(ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = ProductFilter
+    search_fields = ['name', 'description']
+    pagination_class = ProductPagination
+    throttle_classes = [UserRateThrottle]
 
-    def get(self, request, pk=None, *args, **kwargs):
-        if pk:
-            return self.retrieve(request, *args, **kwargs)
-        return self.list(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-    
-    def patch(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
-    
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-    
-    
-    
-class ReviewViewSet(ListModelMixin, CreateModelMixin, GenericAPIView):
+class ReviewViewSet(ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request, pk=None, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
+    permission_classes = [IsAuthenticated, IsObjectOwnerOrReadOnly]
 
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)    
-    
-class FavoriteProductViewSet(ListModelMixin, CreateModelMixin, DestroyModelMixin, RetrieveModelMixin, GenericAPIView):
+    def get_queryset(self, *args, **kwargs):
+        queryset = self.queryset.filter(product_id=self.kwargs['product_pk'])
+        return queryset
+
+
+class FavoriteProductViewSet(ModelViewSet):
     queryset = FavoriteProduct.objects.all()
     serializer_class = FavoriteProductSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'likes'
 
     def get_queryset(self, *args, **kwargs):
         queryset = self.queryset.filter(user=self.request.user)
         return queryset
-    
-    def get(self, request, pk=None, *args, **kwargs):
-        if pk:
-            return self.retrieve(request, *args, **kwargs)
-        return self.list(request, *args, **kwargs)
-    
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-    
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-    
-class CartViewSet(ListModelMixin, CreateModelMixin, UpdateModelMixin, GenericAPIView):
+
+
+class CartViewSet(ListModelMixin, CreateModelMixin, GenericViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
     permission_classes = [IsAuthenticated]
@@ -90,38 +86,45 @@ class CartViewSet(ListModelMixin, CreateModelMixin, UpdateModelMixin, GenericAPI
     def get_queryset(self, *args, **kwargs):
         queryset = self.queryset.filter(user=self.request.user)
         return queryset
-    
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-    
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-    
-    
-class TagList(ListModelMixin, GenericAPIView):
+
+
+class TagList(ListModelMixin, GenericViewSet):
     queryset = ProductTag.objects.all()
     serializer_class = ProductTagSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
 
-
-class ProductImageViewSet(CreateModelMixin, DestroyModelMixin, ListModelMixin, RetrieveModelMixin, GenericAPIView):
+class ProductImageViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin, GenericViewSet):
     queryset = ProductImage.objects.all()
     serializer_class = ProductImageSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
 
     def get_queryset(self):
-        return self.queryset.filter(product__id=self.kwargs['product_id'])
+        return self.queryset.filter(product__id=self.kwargs['product_pk'])
 
-    def get(self, request, pk=None, *args, **kwargs):
-        if pk:
-            return self.retrieve(self, *args, **kwargs)
-        return self.list(request, *args, **kwargs)
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
 
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+class CartItemViewSet(ModelViewSet):
+    queryset = CartItem.objects.all()
+    serializer_class = CartItemSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(cart__user=self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.cart.user != self.request.user:
+            raise PermissionDenied("You do not have permission to delete this review.")
+        instance.delete()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if instance.cart.user != self.request.user:
+            raise PermissionDenied("You do not have permission to update this item.")
+        serializer.save()
