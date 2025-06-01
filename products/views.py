@@ -74,8 +74,10 @@ class FavoriteProductViewSet(ModelViewSet):
     throttle_scope = 'likes'
 
     def get_queryset(self, *args, **kwargs):
-        queryset = self.queryset.filter(user=self.request.user)
-        return queryset
+        user = self.request.user
+        if user and user.is_authenticated:
+            return self.queryset.filter(user=user)
+        return self.queryset.none() 
 
 
 class CartViewSet(ListModelMixin, CreateModelMixin, GenericViewSet):
@@ -116,15 +118,20 @@ class CartItemViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return self.queryset.filter(cart__user=self.request.user)
+        user = self.request.user
+        if user and user.is_authenticated:
+            return self.queryset.filter(cart__user=user)
+        return self.queryset.none() 
 
     def perform_destroy(self, instance):
-        if instance.cart.user != self.request.user:
+        user = self.request.user
+        if not user.is_authenticated or instance.cart.user != self.request.user:
             raise PermissionDenied("You do not have permission to delete this review.")
         instance.delete()
 
     def perform_update(self, serializer):
         instance = self.get_object()
-        if instance.cart.user != self.request.user:
+        user = self.request.user
+        if not user.is_authenticated or instance.cart.user != self.request.user:
             raise PermissionDenied("You do not have permission to update this item.")
         serializer.save()
