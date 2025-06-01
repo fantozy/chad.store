@@ -81,5 +81,5 @@ Your Chad Store is now ready! Here's what you can access:
 
 - Use the Swagger interface to test API endpoints interactively
 - Check container logs with `docker-compose logs <service-name>` if you encounter issues
-- The `creat_eproducts` command populates your database with sample data for testing
+- The `create_products` command populates your database with sample data for testing
 - All tests should pass - if they don't, check your environment configuration
