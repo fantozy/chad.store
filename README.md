@@ -63,7 +63,7 @@ Access the web container and set up the database:
 ```bash
 docker exec -it <web-container-id> bash
 python manage.py migrate
-python manage.py createproducts
+python manage.py create_products
 python manage.py test
 ```
 
